@@ -1,25 +1,20 @@
+# Gensou in Operation
 
-Installation information
-=======
+一个正在探索中的《东方 Project》题材 Minecraft 魔法科技模组。项目关注特色能源、加工机制与实用能力，希望通过器物和交互表达题材，并保持适合个人开发与维护的规模。
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+## 当前阶段
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+项目处于工程准备与玩法探索阶段。实现仍为 NeoForge 示例模组，尚未加入项目专属玩法。项目文档入口已经建立，[AGENTS.md 协作规则](AGENTS.md) 已正式启用。
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+具体任务进度和验证证据从下方工作入口查看；本节在主要功能完成或项目阶段改变时更新。
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+## 从这里开始
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+| 想了解的内容 | 入口 |
+| --- | --- |
+| 玩法方向与系统设计 | [设计索引](docs/design/README.md) |
+| 当前版本、代码结构、构建与运行方法 | [工程概览](docs/engineering/README.md) |
+| 任务记录、接续入口与 Git 流程 | [工作入口](work/README.md) |
+| 人机协作与文档维护规则 | [协作规则](AGENTS.md) |
+
+首次参与开发时，先阅读工程概览并确认工具链，再按任务查阅相关设计和工程专题。具体功能意向及其待定部分记录在设计文档中，文档的存在不代表该功能已实现或已排期。
