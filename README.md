@@ -10,3 +10,7 @@
 
 - [玩法设计](docs/design/README.md)：项目方向、系统构想与设计取舍。
 - [开发说明](docs/engineering/README.md)：工程环境、代码结构、构建方法与协作入口。
+
+## 许可
+
+本项目的原创内容采用 [MIT License](LICENSE)。第三方内容保留各自许可与署名，相关说明见 [开发说明](docs/engineering/README.md#许可与第三方内容)。
