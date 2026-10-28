@@ -7,6 +7,8 @@
 | 编号 | 工作 | 任务 | 结果 |
 | --- | --- | --- | --- |
 | 001 | 建立并复核项目文档与 Git 流程 | [TASK](001-project-documentation/TASK.md) | [RESULT](001-project-documentation/RESULT.md) |
+| 002 | 飞行参考实现调研与操纵方案评估 | [TASK](002-flight-research/TASK.md) | [RESULT](002-flight-research/RESULT.md) |
+| 003 | 飞行操纵与扫帚退出原型 | [TASK](003-flight-prototype/TASK.md) | [RESULT](003-flight-prototype/RESULT.md) |
 
 ## 资料放在哪里
 
