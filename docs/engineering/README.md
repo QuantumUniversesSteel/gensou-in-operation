@@ -32,11 +32,14 @@
 | [settings.gradle](../../settings.gradle) | 插件仓库与 Java 工具链解析配置 |
 | [gradle/wrapper](../../gradle/wrapper)、[gradlew](../../gradlew)、[gradlew.bat](../../gradlew.bat) | 仓库使用的 Gradle 版本及跨平台启动入口 |
 | [.github/workflows/build.yml](../../.github/workflows/build.yml) | 在 push / pull request 时配置 JDK 21 并执行 Gradle 构建 |
+| [.codex/config.toml](../../.codex/config.toml)、[.codex/agents](../../.codex/agents) | 项目内的子智能体并发设置与具名角色配置，不参与模组打包 |
 | `build/` | 编译、生成元数据、报告与 JAR 等构建产物 |
 | `run/` | 开发运行时的配置、日志、存档等本地数据 |
 | `.gradle/`、`.idea/` | 本地构建缓存与 IDE 配置 |
 
 本地构建产物、运行数据和上述缓存目录由 [.gitignore](../../.gitignore) 排除。任务资料与本地临时目录的存放、忽略和提交流程统一见 [工作入口](../../work/README.md)。项目文档不参与当前模组资源打包。
+
+子智能体的职责与调用条件见 [AGENTS.md](../../AGENTS.md#按需角色)，模型和推理强度只在各角色 TOML 中维护。项目配置不设置主会话模型或改写全局权限；这些可共享文件按内容纳入版本管理，不整体忽略 `.codex/`。配置采用 [Codex 独立角色文件](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents) 的形式，实际客户端加载与验证结果记录在相应任务中，不能从文件存在推断当前会话已生效。
 
 ## 现有代码结构
 
