@@ -27,7 +27,7 @@
 
 | 位置 | 在当前工程中的职责 |
 | --- | --- |
-| [src/main/java](../../src/main/java) | 模组 Java 源码，目前为公共入口、客户端入口和模板配置三个类 |
+| [src/main/java](../../src/main/java) | 模组 Java 源码，包括公共入口、客户端入口、自定义物品行为和模板配置 |
 | [src/main/resources](../../src/main/resources) | 英文与中文语言文件，以及测试开关的占位模型；使用 `gensou_in_operation` 资源命名空间 |
 | [src/main/templates](../../src/main/templates) | 模组元数据模板，经构建时变量展开后加入资源 |
 | `src/generated/resources/` | 已配置的数据生成输出与资源来源，当前尚无生成器实现 |
@@ -52,8 +52,9 @@
 | [GensouInOperation](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关和模板示例方块、物品、创造模式标签页，挂接事件并注册配置 |
 | [GensouInOperationClient](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
 | [Config](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
+| [item/FlightTestSwitchItem](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；重写 `Item#use`，在逻辑服务端发送本地化聊天提示，并返回交互结果 |
 
-当前代码仍以这三个类组织，模板示例内容尚未清理。测试开关没有右键或飞行行为，其模型引用原版纸纹理作为占位，未将原版图片复制到仓库。后续形成实际模块时更新本节，尚未落地的架构方案标为提案。
+自定义物品行为目前放在 `item/` 包中，由公共入口通过 `DeferredRegister.Items#registerItem` 创建对应类型；模板示例内容尚未清理。测试开关尚未接入飞行资格或操纵，其模型引用原版纸纹理作为占位，未将原版图片复制到仓库。后续形成实际模块时更新本节，尚未落地的架构方案标为提案。
 
 ## 开发入口
 
@@ -91,3 +92,5 @@
 目前本页覆盖已有工程所需的概览。随着实现出现可独立维护的数据生命周期、同步或自动化约定，再新增专题并在此登记入口；暂不创建空白约定文件。
 
 现有映射配置与具体 API 应结合所用版本的实际依赖阅读。原模板提供的 [Mojang 映射说明](https://github.com/NeoForged/NeoForm/blob/main/Mojang.md) 保留作为相关资料入口。
+
+在 IDEA 中可通过 `External Libraries` 或跳转定义查看工程加载的 Minecraft 与 NeoForge 源码。当前物品行为可从对应版本的 [Items](https://docs.neoforged.net/docs/1.21.1/items/)、[交互流程](https://docs.neoforged.net/docs/1.21.1/items/interactionpipeline/)和[逻辑端说明](https://docs.neoforged.net/docs/1.21.1/concepts/sides/)入手；方法签名、返回值及两端行为仍须与实际依赖核对，不能只依据其他版本的教程。

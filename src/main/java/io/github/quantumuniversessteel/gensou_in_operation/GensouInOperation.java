@@ -30,6 +30,7 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import io.github.quantumuniversessteel.gensou_in_operation.item.FlightTestSwitchItem;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(GensouInOperation.MODID)
@@ -54,10 +55,11 @@ public class GensouInOperation {
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder()
             .alwaysEdible().nutrition(1).saturationModifier(2f).build()));
 
-    // Prototype entry item; interaction and flight behavior have not been implemented yet.
-    public static final DeferredItem<Item> FLIGHT_TEST_SWITCH =
-            ITEMS.registerSimpleItem(
+    // Prototype entry item; currently provides right-click feedback only.
+    public static final DeferredItem<FlightTestSwitchItem> FLIGHT_TEST_SWITCH =
+            ITEMS.registerItem(
                     "flight_test_switch",
+                    FlightTestSwitchItem::new,
                     new Item.Properties().stacksTo(1)
             );
     // Creates a creative tab with the id "gensou_in_operation:example_tab", placed after the combat tab.
