@@ -1,4 +1,7 @@
 {
   "item.gensou_in_operation.flight_test_switch": "飞行测试开关（原型）",
-  "message.gensou_in_operation.flight_test_switch.used": "右键测试成功。"
+  "message.gensou_in_operation.flight_test_switch.enabled": "本模组的测试飞行资格已开启。双击跳跃键起飞。",
+  "message.gensou_in_operation.flight_test_switch.disabled": "本模组的测试飞行资格已关闭。",
+  "message.gensou_in_operation.flight_test_switch.blocked": "请站在方块表面并离开坐骑后再切换测试飞行。",
+  "message.gensou_in_operation.flight_test_switch.unavailable": "当前无法开启测试飞行。"
 }

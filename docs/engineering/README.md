@@ -27,7 +27,7 @@
 
 | 位置 | 在当前工程中的职责 |
 | --- | --- |
-| [src/main/java](../../src/main/java) | 模组 Java 源码，包括公共入口、客户端入口、自定义物品行为和模板配置 |
+| [src/main/java](../../src/main/java) | 模组 Java 源码，包括公共入口、客户端入口、自定义物品行为、测试飞行资格和模板配置 |
 | [src/main/resources](../../src/main/resources) | 英文与中文语言文件，以及测试开关的占位模型；使用 `gensou_in_operation` 资源命名空间 |
 | [src/main/templates](../../src/main/templates) | 模组元数据模板，经构建时变量展开后加入资源 |
 | `src/generated/resources/` | 已配置的数据生成输出与资源来源，当前尚无生成器实现 |
@@ -52,9 +52,14 @@
 | [GensouInOperation](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关和模板示例方块、物品、创造模式标签页，挂接事件并注册配置 |
 | [GensouInOperationClient](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
 | [Config](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
-| [item/FlightTestSwitchItem](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；重写 `Item#use`，在逻辑服务端发送本地化聊天提示，并返回交互结果 |
+| [item/FlightTestSwitchItem](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；在逻辑服务端检查使用条件、调用资格开关并发送本地化反馈，返回交互结果 |
+| [flight/ReimuTestFlight](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 查询、授予和撤销本模组的测试飞行资格来源，不直接处理输入或物品交互 |
 
-自定义物品行为目前放在 `item/` 包中，由公共入口通过 `DeferredRegister.Items#registerItem` 创建对应类型；模板示例内容尚未清理。测试开关尚未接入飞行资格或操纵，其模型引用原版纸纹理作为占位，未将原版图片复制到仓库。后续形成实际模块时更新本节，尚未落地的架构方案标为提案。
+自定义物品行为目前放在 `item/` 包中，由公共入口通过 `DeferredRegister.Items#registerItem` 创建对应类型；模板示例内容尚未清理。测试开关的模型引用原版纸纹理作为占位，未将原版图片复制到仓库。
+
+测试飞行通过 `NeoForgeMod.CREATIVE_FLIGHT` 属性上的临时修饰符提供资格，来源 ID 为 `gensou_in_operation:reimu_test_flight`。授予前检查该来源是否已存在，撤销时只移除同一 ID；不修改属性基础值或清空其他修饰符，也不直接改写 `mayfly` 或强制令玩家起飞。
+
+当前资格同步和飞行启停沿用实际依赖中的属性与原版 / NeoForge 逻辑，没有自定义飞行网络包或操纵代码。临时修饰符不写入常规属性存档，但这不等于维度、游戏模式等变化已获得清理；当前尚无专门的生命周期事件处理。阶段验证及限制见 [003 结果](../../work/003-flight-prototype/RESULT.md)，使用条件及后续设计见 [飞行设计](../design/flight.md#资格切换与站立支撑)。
 
 ## 开发入口
 
