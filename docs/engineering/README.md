@@ -17,7 +17,9 @@
 | Gradle Wrapper | `9.2.1` | [Wrapper 配置](../../gradle/wrapper/gradle-wrapper.properties) |
 | Parchment 映射 | Minecraft `1.21.1`，映射 `2024.11.17` | [gradle.properties](../../gradle.properties) |
 
-模组标识仍为模板的 `examplemod`，显示名为 `Example Mod`，Java 包为 `com.example.examplemod`。`1.0.0` 也是当前模板元数据中的版本值，不能据此推断已经完成正式发布。命名与元数据的调整应作为明确工作处理。
+当前 MODID 为 `gensou_in_operation`，显示名为 `Gensou in Operation`；构建用 Group ID 为 `io.github.quantumuniversessteel`，Java 基础包为 `io.github.quantumuniversessteel.gensou_in_operation`。仓库与根目录名保持 `gensou-in-operation`。模组版本值仍沿用模板的 `1.0.0`，不表示已经正式发布。
+
+工程命名在首次占位测试物品提交后统一调整，依据与验证见 [005 工程命名结果](../../work/005-project-identity/RESULT.md)。本次没有为旧 `examplemod:*` 注册标识提供存档映射，也不自动迁移旧配置；使用新的独立测试世界，保留旧测试存档供查看，不将旧物品消失视为新功能已验证。
 
 当前没有启用额外的玩法模组依赖；构建文件里的 JEI 等声明都是注释示例。
 
@@ -25,8 +27,8 @@
 
 | 位置 | 在当前工程中的职责 |
 | --- | --- |
-| [src/main/java](../../src/main/java) | 模组 Java 源码，目前只有模板的三个类 |
-| [src/main/resources](../../src/main/resources) | 手工维护的游戏资源，目前只有示例英文语言文件 |
+| [src/main/java](../../src/main/java) | 模组 Java 源码，目前为公共入口、客户端入口和模板配置三个类 |
+| [src/main/resources](../../src/main/resources) | 英文与中文语言文件，以及测试开关的占位模型；使用 `gensou_in_operation` 资源命名空间 |
 | [src/main/templates](../../src/main/templates) | 模组元数据模板，经构建时变量展开后加入资源 |
 | `src/generated/resources/` | 已配置的数据生成输出与资源来源，当前尚无生成器实现 |
 | [gradle.properties](../../gradle.properties) | 游戏、加载器、映射与模组元数据参数，以及 Gradle 运行选项 |
@@ -47,11 +49,11 @@
 
 | 类 | 当前职责 |
 | --- | --- |
-| [ExampleMod](../../src/main/java/com/example/examplemod/ExampleMod.java) | 公共模组入口；注册示例方块、物品与创造模式标签页，挂接事件并注册配置 |
-| [ExampleModClient](../../src/main/java/com/example/examplemod/ExampleModClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
-| [Config](../../src/main/java/com/example/examplemod/Config.java) | 模板配置项及其校验 |
+| [GensouInOperation](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关和模板示例方块、物品、创造模式标签页，挂接事件并注册配置 |
+| [GensouInOperationClient](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
+| [Config](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
 
-当前代码以这三个模板类组织。后续形成实际模块时更新本节，尚未落地的架构方案标为提案。
+当前代码仍以这三个类组织，模板示例内容尚未清理。测试开关没有右键或飞行行为，其模型引用原版纸纹理作为占位，未将原版图片复制到仓库。后续形成实际模块时更新本节，尚未落地的架构方案标为提案。
 
 ## 开发入口
 

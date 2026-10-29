@@ -10,6 +10,7 @@
 | 002 | 飞行参考实现调研与操纵方案评估 | [TASK](002-flight-research/TASK.md) | [RESULT](002-flight-research/RESULT.md) |
 | 003 | 飞行操纵与扫帚退出原型 | [TASK](003-flight-prototype/TASK.md) | [RESULT](003-flight-prototype/RESULT.md) |
 | 004 | 配置项目辅助智能体 | [TASK](004-agent-configuration/TASK.md) | [RESULT](004-agent-configuration/RESULT.md) |
+| 005 | 统一工程身份与命名 | [TASK](005-project-identity/TASK.md) | [RESULT](005-project-identity/RESULT.md) |
 
 ## 资料放在哪里
 

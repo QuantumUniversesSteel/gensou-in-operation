@@ -1,0 +1,14 @@
+{
+  "itemGroup.gensou_in_operation": "Gensou in Operation",
+  "block.gensou_in_operation.example_block": "Example Block",
+  "item.gensou_in_operation.example_item": "Example Item",
+  "item.gensou_in_operation.flight_test_switch": "Flight Test Switch (Prototype)",
+
+  "gensou_in_operation.configuration.title": "Gensou in Operation Configs",
+  "gensou_in_operation.configuration.section.gensou.in.operation.common.toml": "Gensou in Operation Configs",
+  "gensou_in_operation.configuration.section.gensou.in.operation.common.toml.title": "Gensou in Operation Configs",
+  "gensou_in_operation.configuration.items": "Item List",
+  "gensou_in_operation.configuration.logDirtBlock": "Log Dirt Block",
+  "gensou_in_operation.configuration.magicNumberIntroduction": "Magic Number Text",
+  "gensou_in_operation.configuration.magicNumber": "Magic Number"
+}
