@@ -107,6 +107,36 @@ neoForge {
     }
 }
 
+// Server integration tests use a separate mod and never enter the published main JAR.
+sourceSets {
+    gameTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    gameTestImplementation.extendsFrom implementation
+    gameTestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+neoForge.addModdingDependenciesTo(sourceSets.gameTest)
+
+def mainMod = neoForge.mods.getByName(project.mod_id)
+def gameTestMod = neoForge.mods.create("${project.mod_id}_tests") {
+    sourceSet(sourceSets.gameTest)
+}
+
+neoForge.runs.configureEach {
+    loadedMods = [mainMod]
+}
+
+neoForge.runs.named('gameTestServer') {
+    sourceSet = sourceSets.gameTest
+    loadedMods = [mainMod, gameTestMod]
+    gameDirectory = layout.buildDirectory.dir('gametest').get()
+}
+
 // Sets up a dependency configuration called 'localRuntime'.
 // This configuration should be used instead of 'runtimeOnly' to declare
 // a dependency that will be present for runtime testing but that is

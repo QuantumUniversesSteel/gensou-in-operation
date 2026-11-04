@@ -1,0 +1,15 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="gensou_in_operation_tests"
+version="1.0.0"
+displayName="Gensou in Operation GameTests"
+
+[[dependencies.gensou_in_operation_tests]]
+modId="gensou_in_operation"
+type="required"
+versionRange="[1.0.0,)"
+ordering="AFTER"
+side="BOTH"

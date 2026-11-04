@@ -55,7 +55,7 @@ public class GensouInOperation {
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder()
             .alwaysEdible().nutrition(1).saturationModifier(2f).build()));
 
-    // Prototype entry item; currently provides right-click feedback only.
+    // Prototype entry item for toggling this mod's test flight permission.
     public static final DeferredItem<FlightTestSwitchItem> FLIGHT_TEST_SWITCH =
             ITEMS.registerItem(
                     "flight_test_switch",

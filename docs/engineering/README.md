@@ -29,13 +29,14 @@
 | --- | --- |
 | [src/main/java](../../src/main/java) | 模组 Java 源码，包括公共入口、客户端入口、自定义物品行为、测试飞行资格和模板配置 |
 | [src/main/resources](../../src/main/resources) | 英文与中文语言文件，以及测试开关的占位模型；使用 `gensou_in_operation` 资源命名空间 |
+| [src/gameTest](../../src/gameTest) | 独立的服务端集成测试模组、测试代码与空结构；仅 GameTest 运行加载，不进入正式 JAR |
 | [src/main/templates](../../src/main/templates) | 模组元数据模板，经构建时变量展开后加入资源 |
 | `src/generated/resources/` | 已配置的数据生成输出与资源来源，当前尚无生成器实现 |
 | [gradle.properties](../../gradle.properties) | 游戏、加载器、映射与模组元数据参数，以及 Gradle 运行选项 |
 | [build.gradle](../../build.gradle) | 插件、Java 工具链、依赖、运行配置、资源生成与打包 |
 | [settings.gradle](../../settings.gradle) | 插件仓库与 Java 工具链解析配置 |
 | [gradle/wrapper](../../gradle/wrapper)、[gradlew](../../gradlew)、[gradlew.bat](../../gradlew.bat) | 仓库使用的 Gradle 版本及跨平台启动入口 |
-| [.github/workflows/build.yml](../../.github/workflows/build.yml) | 在 push / pull request 时配置 JDK 21 并执行 Gradle 构建 |
+| [.github/workflows/build.yml](../../.github/workflows/build.yml) | 在 push / pull request 时配置 JDK 21，执行 Gradle 构建和服务端集成测试 |
 | [.codex/config.toml](../../.codex/config.toml)、[.codex/agents](../../.codex/agents) | 项目内的子智能体并发设置与具名角色配置，不参与模组打包 |
 | `build/` | 编译、生成元数据、报告与 JAR 等构建产物 |
 | `run/` | 开发运行时的配置、日志、存档等本地数据 |
@@ -53,13 +54,20 @@
 | [GensouInOperationClient](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
 | [Config](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
 | [item/FlightTestSwitchItem](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；在逻辑服务端检查使用条件、调用资格开关并发送本地化反馈，返回交互结果 |
-| [flight/ReimuTestFlight](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 查询、授予和撤销本模组的测试飞行资格来源，不直接处理输入或物品交互 |
+| [flight/ReimuTestFlight](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 管理自身测试资格来源、授予时的游戏模式记录及资格失效后的停飞同步 |
+| [flight/ReimuTestFlightEvents](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightEvents.java) | 在游戏事件总线上处理服务端玩家的生命周期，服务器停止时清空会话记录 |
 
 自定义物品行为目前放在 `item/` 包中，由公共入口通过 `DeferredRegister.Items#registerItem` 创建对应类型；模板示例内容尚未清理。测试开关的模型引用原版纸纹理作为占位，未将原版图片复制到仓库。
 
 测试飞行通过 `NeoForgeMod.CREATIVE_FLIGHT` 属性上的临时修饰符提供资格，来源 ID 为 `gensou_in_operation:reimu_test_flight`。授予前检查该来源是否已存在，撤销时只移除同一 ID；不修改属性基础值或清空其他修饰符，也不直接改写 `mayfly` 或强制令玩家起飞。
 
-当前资格同步和飞行启停沿用实际依赖中的属性与原版 / NeoForge 逻辑，没有自定义飞行网络包或操纵代码。临时修饰符不写入常规属性存档，但这不等于维度、游戏模式等变化已获得清理；当前尚无专门的生命周期事件处理。阶段验证及限制见 [003 结果](../../work/003-flight-prototype/RESULT.md)，使用条件及后续设计见 [飞行设计](../design/flight.md#资格切换与站立支撑)。
+资格属性同步和飞行启停沿用实际依赖中的原版 / NeoForge 逻辑，没有自定义飞行网络包或操纵代码。撤销自身来源后，只有综合 `mayFly()` 已为假且玩家仍在飞行时，才关闭 `flying` 并通过 `onUpdateAbilities()` 发送原版能力包；创造、旁观和其他有效来源继续由各自机制决定。
+
+临时修饰符不写入常规属性存档。生命周期处理在逻辑服务端执行：登录、退出、重生和完成跨维度时撤销自身来源；玩家 tick 结束时检查实际死亡和模式变化。授予时只在内存中记录玩家 UUID 与实际 `GameType`，资格仍以属性来源为准；来源移除、会话结束和服务器停止时清理相应记录，不保存旧权限布尔值。
+
+游戏模式切换前事件可以被取消，因此不能仅根据请求目标撤销资格。当前在该事件中只检查此前是否已经发生实际模式变化，以覆盖同 tick 往返；玩家 tick 再核对最终实际模式。取消但未生效的切换不会清理资格。阶段验证及限制见 [003 结果](../../work/003-flight-prototype/RESULT.md)，使用条件及后续设计见 [飞行设计](../design/flight.md#资格切换与站立支撑)。
+
+上述生命周期清理描述当前代码，不是新的玩法要求。2026-11-03 确认的 [状态延续规则](../design/flight.md#灵梦式飞行的状态延续) 要求非死亡转换保留资格与飞行状态；当前尚无相应持久化与恢复实现，已有测试的预期也需同步修订。`CREATIVE_FLIGHT` 与改键需求的本次源码核对及候选路线见 [003 后续评估](../../work/003-flight-prototype/RESULT.md#2026-11-03复测反馈与状态延续规则修订)。
 
 ## 开发入口
 
@@ -71,12 +79,17 @@
 | --- | --- | --- |
 | 查看 Wrapper 和运行它的 JVM | `.\gradlew.bat --version` | JVM 信息与项目配置的编译工具链应分别核对 |
 | 构建模组 | `.\gradlew.bat build` | JAR 输出到 `build/libs/`，名称来自模组标识与版本配置 |
+| 服务端集成测试 | `.\gradlew.bat runGameTestServer` | 编译并加载独立测试模组，在 `build/gametest/` 运行后退出；普通 `build` 不自动执行它 |
 | 启动开发客户端 | `.\gradlew.bat runClient` | 使用当前 `client` 运行配置 |
 | 启动开发独立服务端 | `.\gradlew.bat runServer` | 使用当前 `server` 运行配置及其 `--nogui` 参数 |
 
 其他系统使用 `./gradlew` 入口，例如 CI 中的 `./gradlew build`。命令及构建输出的用法参见 [NeoForge 构建与运行说明](https://docs.neoforged.net/docs/1.21.1/gettingstarted/#building-and-testing-your-mod)。独立服务端首次启动的准备步骤见同页的 Server Testing。
 
-`build.gradle` 还提供 `data` 与 `gameTestServer` 运行配置，可从 IDE 的运行配置中进入。目前源码中没有数据生成器或 GameTest 用例。运行配置的行为参见 [ModDevGradle Runs](https://github.com/neoforged/ModDevGradle#runs)。
+`build.gradle` 还提供 `data` 运行配置，目前没有数据生成器。运行配置的行为参见 [ModDevGradle Runs](https://github.com/neoforged/ModDevGradle#runs)。
+
+`gameTestServer` 加载主模组与 `gensou_in_operation_tests`；普通客户端、独立服务端和数据生成运行只加载主模组。测试源集通过现有 ModDevGradle 获取 Minecraft / NeoForge API，没有增加正式玩法前置或额外测试框架。测试模组使用独立 Java 包，避免两个模组导出同一个包；其 `empty.nbt` 是本项目生成的 3×3×3 空测试结构。
+
+当前 [飞行生命周期测试](../../src/gameTest/java/io/github/quantumuniversessteel/gensou_in_operation/gametest/FlightLifecycleGameTests.java) 使用真实 `ServerPlayer`、保存加载及生命周期入口，连接使用内存通道。测试连接接入服务器 tick，模拟传送与区块确认和静止移动上报，并检查实际发出的属性、能力包；不把它等同于真实客户端已接收和应用同步。测试成功或失败都会清理玩家、临时监听器及连接。API 入门见 [1.21.1 Game Tests](https://docs.neoforged.net/docs/1.21.1/misc/gametest/)，方法仍以实际依赖核实。
 
 上述命令是开发入口；是否实际执行及其结果记录在对应任务的 `RESULT.md` 中。构建完成不等于游戏行为、联机同步或操作手感已验证。
 
