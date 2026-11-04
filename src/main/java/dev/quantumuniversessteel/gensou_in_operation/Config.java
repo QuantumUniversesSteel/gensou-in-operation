@@ -1,4 +1,4 @@
-package io.github.quantumuniversessteel.gensou_in_operation;
+package dev.quantumuniversessteel.gensou_in_operation;
 
 import java.util.List;
 import java.util.Set;

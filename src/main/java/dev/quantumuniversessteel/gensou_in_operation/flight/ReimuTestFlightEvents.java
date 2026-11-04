@@ -1,6 +1,6 @@
-package io.github.quantumuniversessteel.gensou_in_operation.flight;
+package dev.quantumuniversessteel.gensou_in_operation.flight;
 
-import io.github.quantumuniversessteel.gensou_in_operation.GensouInOperation;
+import dev.quantumuniversessteel.gensou_in_operation.GensouInOperation;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;

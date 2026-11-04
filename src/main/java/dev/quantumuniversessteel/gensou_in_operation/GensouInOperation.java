@@ -1,4 +1,4 @@
-package io.github.quantumuniversessteel.gensou_in_operation;
+package dev.quantumuniversessteel.gensou_in_operation;
 
 import org.slf4j.Logger;
 
@@ -30,7 +30,7 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import io.github.quantumuniversessteel.gensou_in_operation.item.FlightTestSwitchItem;
+import dev.quantumuniversessteel.gensou_in_operation.item.FlightTestSwitchItem;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(GensouInOperation.MODID)

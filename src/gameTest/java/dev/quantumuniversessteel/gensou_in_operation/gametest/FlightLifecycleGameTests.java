@@ -1,8 +1,8 @@
-package io.github.quantumuniversessteel.gensou_in_operation.gametest;
+package dev.quantumuniversessteel.gensou_in_operation.gametest;
 
 import com.mojang.authlib.GameProfile;
-import io.github.quantumuniversessteel.gensou_in_operation.GensouInOperation;
-import io.github.quantumuniversessteel.gensou_in_operation.flight.ReimuTestFlight;
+import dev.quantumuniversessteel.gensou_in_operation.GensouInOperation;
+import dev.quantumuniversessteel.gensou_in_operation.flight.ReimuTestFlight;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;

@@ -17,9 +17,11 @@
 | Gradle Wrapper | `9.2.1` | [Wrapper 配置](../../gradle/wrapper/gradle-wrapper.properties) |
 | Parchment 映射 | Minecraft `1.21.1`，映射 `2024.11.17` | [gradle.properties](../../gradle.properties) |
 
-当前 MODID 为 `gensou_in_operation`，显示名为 `Gensou in Operation`；构建用 Group ID 为 `io.github.quantumuniversessteel`，Java 基础包为 `io.github.quantumuniversessteel.gensou_in_operation`。仓库与根目录名保持 `gensou-in-operation`。模组版本值仍沿用模板的 `1.0.0`，不表示已经正式发布。
+当前 MODID 为 `gensou_in_operation`，显示名为 `Gensou in Operation`；构建用 Group ID 为 `dev.quantumuniversessteel`，Java 基础包为 `dev.quantumuniversessteel.gensou_in_operation`。仓库与根目录名保持 `gensou-in-operation`。模组版本值仍沿用模板的 `1.0.0`，不表示已经正式发布。
 
 工程命名在首次占位测试物品提交后统一调整，依据与验证见 [005 工程命名结果](../../work/005-project-identity/RESULT.md)。本次没有为旧 `examplemod:*` 注册标识提供存档映射，也不自动迁移旧配置；使用新的独立测试世界，保留旧测试存档供查看，不将旧物品消失视为新功能已验证。
+
+2026-11-04 将作者包前缀与 Group ID 从 `io.github.quantumuniversessteel` 改为 `dev.quantumuniversessteel`，同步主源码、GameTest 源码和本页链接。该次调整没有更改 MODID、注册标识、资源命名空间或配置文件名，不增加游戏存档迁移；`flight` 等内部包层次保持不变。两次命名调整的检查分别记录在上述 005 结果中。
 
 当前没有启用额外的玩法模组依赖；构建文件里的 JEI 等声明都是注释示例。
 
@@ -50,12 +52,12 @@
 
 | 类 | 当前职责 |
 | --- | --- |
-| [GensouInOperation](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关和模板示例方块、物品、创造模式标签页，挂接事件并注册配置 |
-| [GensouInOperationClient](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
-| [Config](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
-| [item/FlightTestSwitchItem](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；在逻辑服务端检查使用条件、调用资格开关并发送本地化反馈，返回交互结果 |
-| [flight/ReimuTestFlight](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 管理自身测试资格来源、授予时的游戏模式记录及资格失效后的停飞同步 |
-| [flight/ReimuTestFlightEvents](../../src/main/java/io/github/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightEvents.java) | 在游戏事件总线上处理服务端玩家的生命周期，服务器停止时清空会话记录 |
+| [GensouInOperation](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关和模板示例方块、物品、创造模式标签页，挂接事件并注册配置 |
+| [GensouInOperationClient](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
+| [Config](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
+| [item/FlightTestSwitchItem](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；在逻辑服务端检查使用条件、调用资格开关并发送本地化反馈，返回交互结果 |
+| [flight/ReimuTestFlight](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 管理自身测试资格来源、授予时的游戏模式记录及资格失效后的停飞同步 |
+| [flight/ReimuTestFlightEvents](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightEvents.java) | 在游戏事件总线上处理服务端玩家的生命周期，服务器停止时清空会话记录 |
 
 自定义物品行为目前放在 `item/` 包中，由公共入口通过 `DeferredRegister.Items#registerItem` 创建对应类型；模板示例内容尚未清理。测试开关的模型引用原版纸纹理作为占位，未将原版图片复制到仓库。
 
@@ -89,7 +91,7 @@
 
 `gameTestServer` 加载主模组与 `gensou_in_operation_tests`；普通客户端、独立服务端和数据生成运行只加载主模组。测试源集通过现有 ModDevGradle 获取 Minecraft / NeoForge API，没有增加正式玩法前置或额外测试框架。测试模组使用独立 Java 包，避免两个模组导出同一个包；其 `empty.nbt` 是本项目生成的 3×3×3 空测试结构。
 
-当前 [飞行生命周期测试](../../src/gameTest/java/io/github/quantumuniversessteel/gensou_in_operation/gametest/FlightLifecycleGameTests.java) 使用真实 `ServerPlayer`、保存加载及生命周期入口，连接使用内存通道。测试连接接入服务器 tick，模拟传送与区块确认和静止移动上报，并检查实际发出的属性、能力包；不把它等同于真实客户端已接收和应用同步。测试成功或失败都会清理玩家、临时监听器及连接。API 入门见 [1.21.1 Game Tests](https://docs.neoforged.net/docs/1.21.1/misc/gametest/)，方法仍以实际依赖核实。
+当前 [飞行生命周期测试](../../src/gameTest/java/dev/quantumuniversessteel/gensou_in_operation/gametest/FlightLifecycleGameTests.java) 使用真实 `ServerPlayer`、保存加载及生命周期入口，连接使用内存通道。测试连接接入服务器 tick，模拟传送与区块确认和静止移动上报，并检查实际发出的属性、能力包；不把它等同于真实客户端已接收和应用同步。测试成功或失败都会清理玩家、临时监听器及连接。API 入门见 [1.21.1 Game Tests](https://docs.neoforged.net/docs/1.21.1/misc/gametest/)，方法仍以实际依赖核实。
 
 上述命令是开发入口；是否实际执行及其结果记录在对应任务的 `RESULT.md` 中。构建完成不等于游戏行为、联机同步或操作手感已验证。
 

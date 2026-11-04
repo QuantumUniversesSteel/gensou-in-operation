@@ -1,6 +1,6 @@
-package io.github.quantumuniversessteel.gensou_in_operation.item;
+package dev.quantumuniversessteel.gensou_in_operation.item;
 
-import io.github.quantumuniversessteel.gensou_in_operation.flight.ReimuTestFlight;
+import dev.quantumuniversessteel.gensou_in_operation.flight.ReimuTestFlight;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
