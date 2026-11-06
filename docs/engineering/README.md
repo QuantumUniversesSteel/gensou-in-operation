@@ -50,30 +50,16 @@
 
 ## 现有代码结构
 
-| 类 | 当前职责 |
+| 入口或模块 | 当前职责 |
 | --- | --- |
-| [GensouInOperation](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关、飞行附件和模板示例内容，挂接事件并注册配置 |
+| [GensouInOperation](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；汇集注册、事件挂接与配置 |
 | [GensouInOperationClient](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
 | [Config](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
-| [item/FlightTestSwitchItem](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；在逻辑服务端检查使用条件、调用资格开关并发送本地化反馈，返回交互结果 |
-| [flight/ReimuTestFlight](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 管理自身资格来源、保存状态的恢复、旁观前状态和同步 |
-| [flight/ReimuTestFlightState](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightState.java)、[flight/FlightAttachments](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/FlightAttachments.java) | 不可变的服务端状态及其序列化附件注册 |
-| [flight/ReimuTestFlightEvents](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightEvents.java) | 连接玩家数据加载、登录、维度变化、玩家重建和死亡清理 |
-| [mixin/ServerPlayerGameModeMixin](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/mixin/ServerPlayerGameModeMixin.java)、[mixin/ServerPlayerMixin](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/mixin/ServerPlayerMixin.java) | 在成功的服务端模式切换中维护旁观记录，并将模式与飞行更新一起发送 |
+| [item/](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/item) | 自定义物品交互行为 |
+| [flight/](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight) | 飞行资格、保存状态及生命周期处理 |
+| [mixin/](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/mixin) | 对原版行为的局部接入 |
 
-自定义物品行为目前放在 `item/` 包中，由公共入口通过 `DeferredRegister.Items#registerItem` 创建对应类型；模板示例内容尚未清理。测试开关的模型引用原版纸纹理作为占位，未将原版图片复制到仓库。
-
-测试飞行通过 `NeoForgeMod.CREATIVE_FLIGHT` 属性上的临时修饰符提供资格，来源 ID 为 `gensou_in_operation:reimu_test_flight`。授予前检查该来源是否已存在，撤销时只移除同一 ID；不修改属性基础值或清空其他修饰符，也不直接改写 `mayfly` 或强制令玩家起飞。
-
-资格与启停仍接入原版 / NeoForge，没有自定义飞行网络协议或操纵代码。撤销自身来源后，只有综合 `mayFly()` 已为假且玩家仍在飞行时，才关闭 `flying` 并发送原版能力包；创造、旁观和其他有效来源继续由各自机制决定。
-
-服务端玩家附件 `gensou_in_operation:reimu_test_flight` 使用 `Codec` 保存 `enabled` 及可选的 `flying_before_spectator`。普通模式的实际飞行位复用原版 `Abilities.flying` 存档，不另外逐 tick 维护副本。临时属性修饰符仍不写入属性存档，由附件重建；缺少附件的旧存档默认没有本模组资格，不根据创造模式或外部属性推断开启。附件不启用 `copyOnDeath`，只在服务端使用。
-
-`LoadFromFile` 在模式初始化和首次能力包之前恢复资格，同时暂存原飞行位，覆盖服务器强制登录模式的情况；登录结束后，仅旁观模式继续保留这份记忆。常规维度转换保留原玩家；非死亡 Clone 在 NeoForge 复制附件之后重建来源和飞行位，再在 Respawn 包之后同步。玩家 tick、退出及加载检查实际死亡，死亡 Clone 再作清理；末地字幕期间被移除但生命值仍为正的玩家不视为死亡。没有 UUID 会话表，也不每 tick 强制起飞。
-
-公开模式事件发生在变更之前且可以取消或改写目标，因此用两个小范围服务端 Mixin 包住实际模式赋值及后续发包点。成功赋值后记录或恢复旁观前状态；取消和无变化的请求不触发。拥有本模组来源时，将模式、完整 `CREATIVE_FLIGHT` 属性及最终能力组成一个原版 `ClientboundBundlePacket`，避免客户端在旧旁观模式下短暂处理停飞并回传错误状态；保留原版即时隐身更新。其他玩家保留原发包路径。配置见 [Mixin JSON](../../src/main/resources/gensou_in_operation.mixins.json) 及元数据模板；使用 NeoForge 已携带的 MixinExtras，没有增加玩法前置。
-
-登录、维度转换及非死亡重建也通过原版 bundle 按“属性→能力”补发恢复状态；发送完整属性实例以保留外部修饰符。自动化检查发包内容与顺序，客户端实际表现由真人复测确认；两类证据分别记录在 [003 结果](../../work/003-flight-prototype/RESULT.md)。使用条件与玩法规则见 [飞行设计](../design/flight.md#灵梦式飞行的状态延续)，后续改键路线见 [003 输入评估](../../work/003-flight-prototype/RESULT.md#2026-11-03复测反馈与状态延续规则修订)。
+模板示例内容尚未清理。具体功能的类职责和技术细节从下方 [工程专题索引](#工程专题与资料) 按需读取。
 
 ## 开发入口
 
@@ -93,9 +79,7 @@
 
 `build.gradle` 还提供 `data` 运行配置，目前没有数据生成器。运行配置的行为参见 [ModDevGradle Runs](https://github.com/neoforged/ModDevGradle#runs)。
 
-`gameTestServer` 加载主模组与 `gensou_in_operation_tests`；普通客户端、独立服务端和数据生成运行只加载主模组。测试源集通过现有 ModDevGradle 获取 Minecraft / NeoForge API，没有增加正式玩法前置或额外测试框架。测试模组使用独立 Java 包，避免两个模组导出同一个包；其 `empty.nbt` 是本项目生成的 3×3×3 空测试结构。
-
-当前 [飞行生命周期测试](../../src/gameTest/java/dev/quantumuniversessteel/gensou_in_operation/gametest/FlightLifecycleGameTests.java) 使用真实 `ServerPlayer`、保存加载及生命周期入口，连接使用内存通道。测试连接接入服务器 tick，模拟传送与区块确认和静止移动上报，并检查实际发出的属性、能力包；不把它等同于真实客户端已接收和应用同步。测试成功或失败都会清理玩家、临时监听器及连接。API 入门见 [1.21.1 Game Tests](https://docs.neoforged.net/docs/1.21.1/misc/gametest/)，方法仍以实际依赖核实。
+`gameTestServer` 加载主模组与 `gensou_in_operation_tests`；普通客户端、独立服务端和数据生成运行只加载主模组。测试源集通过现有 ModDevGradle 获取 Minecraft / NeoForge API，使用独立 Java 包以避免模组间重复导出，不进入主 JAR，也没有增加正式玩法前置或额外测试框架。API 入门见 [1.21.1 Game Tests](https://docs.neoforged.net/docs/1.21.1/misc/gametest/)，具体测试实现见对应工程专题。
 
 上述命令是开发入口；是否实际执行及其结果记录在对应任务的 `RESULT.md` 中。构建完成不等于游戏行为、联机同步或操作手感已验证。
 
@@ -113,7 +97,9 @@
 
 ## 工程专题与资料
 
-目前本页覆盖已有工程所需的概览。随着实现出现可独立维护的数据生命周期、同步或自动化约定，再新增专题并在此登记入口；暂不创建空白约定文件。
+| 专题 | 何时读取 |
+| --- | --- |
+| [飞行工程实现](flight.md) | 修改测试飞行入口、资格来源、保存恢复、模式或维度接入、同步与相关测试时 |
 
 现有映射配置与具体 API 应结合所用版本的实际依赖阅读。原模板提供的 [Mojang 映射说明](https://github.com/NeoForged/NeoForm/blob/main/Mojang.md) 保留作为相关资料入口。
 
