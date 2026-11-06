@@ -31,6 +31,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import dev.quantumuniversessteel.gensou_in_operation.item.FlightTestSwitchItem;
+import dev.quantumuniversessteel.gensou_in_operation.flight.FlightAttachments;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(GensouInOperation.MODID)
@@ -84,6 +85,7 @@ public class GensouInOperation {
         ITEMS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so tabs get registered
         CREATIVE_MODE_TABS.register(modEventBus);
+        FlightAttachments.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in.
         // Note that this is necessary if and only if we want this class to respond directly to events.

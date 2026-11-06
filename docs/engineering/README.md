@@ -30,7 +30,7 @@
 | 位置 | 在当前工程中的职责 |
 | --- | --- |
 | [src/main/java](../../src/main/java) | 模组 Java 源码，包括公共入口、客户端入口、自定义物品行为、测试飞行资格和模板配置 |
-| [src/main/resources](../../src/main/resources) | 英文与中文语言文件，以及测试开关的占位模型；使用 `gensou_in_operation` 资源命名空间 |
+| [src/main/resources](../../src/main/resources) | 英文与中文语言文件、测试开关的占位模型和 Mixin 配置；使用 `gensou_in_operation` 资源命名空间 |
 | [src/gameTest](../../src/gameTest) | 独立的服务端集成测试模组、测试代码与空结构；仅 GameTest 运行加载，不进入正式 JAR |
 | [src/main/templates](../../src/main/templates) | 模组元数据模板，经构建时变量展开后加入资源 |
 | `src/generated/resources/` | 已配置的数据生成输出与资源来源，当前尚无生成器实现 |
@@ -52,24 +52,28 @@
 
 | 类 | 当前职责 |
 | --- | --- |
-| [GensouInOperation](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关和模板示例方块、物品、创造模式标签页，挂接事件并注册配置 |
+| [GensouInOperation](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperation.java) | 公共模组入口；注册占位测试开关、飞行附件和模板示例内容，挂接事件并注册配置 |
 | [GensouInOperationClient](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/GensouInOperationClient.java) | 客户端入口；注册配置界面并处理客户端初始化事件 |
 | [Config](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/Config.java) | 模板配置项及其校验 |
 | [item/FlightTestSwitchItem](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/item/FlightTestSwitchItem.java) | 测试开关的物品行为；在逻辑服务端检查使用条件、调用资格开关并发送本地化反馈，返回交互结果 |
-| [flight/ReimuTestFlight](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 管理自身测试资格来源、授予时的游戏模式记录及资格失效后的停飞同步 |
-| [flight/ReimuTestFlightEvents](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightEvents.java) | 在游戏事件总线上处理服务端玩家的生命周期，服务器停止时清空会话记录 |
+| [flight/ReimuTestFlight](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlight.java) | 管理自身资格来源、保存状态的恢复、旁观前状态和同步 |
+| [flight/ReimuTestFlightState](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightState.java)、[flight/FlightAttachments](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/FlightAttachments.java) | 不可变的服务端状态及其序列化附件注册 |
+| [flight/ReimuTestFlightEvents](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/flight/ReimuTestFlightEvents.java) | 连接玩家数据加载、登录、维度变化、玩家重建和死亡清理 |
+| [mixin/ServerPlayerGameModeMixin](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/mixin/ServerPlayerGameModeMixin.java)、[mixin/ServerPlayerMixin](../../src/main/java/dev/quantumuniversessteel/gensou_in_operation/mixin/ServerPlayerMixin.java) | 在成功的服务端模式切换中维护旁观记录，并将模式与飞行更新一起发送 |
 
 自定义物品行为目前放在 `item/` 包中，由公共入口通过 `DeferredRegister.Items#registerItem` 创建对应类型；模板示例内容尚未清理。测试开关的模型引用原版纸纹理作为占位，未将原版图片复制到仓库。
 
 测试飞行通过 `NeoForgeMod.CREATIVE_FLIGHT` 属性上的临时修饰符提供资格，来源 ID 为 `gensou_in_operation:reimu_test_flight`。授予前检查该来源是否已存在，撤销时只移除同一 ID；不修改属性基础值或清空其他修饰符，也不直接改写 `mayfly` 或强制令玩家起飞。
 
-资格属性同步和飞行启停沿用实际依赖中的原版 / NeoForge 逻辑，没有自定义飞行网络包或操纵代码。撤销自身来源后，只有综合 `mayFly()` 已为假且玩家仍在飞行时，才关闭 `flying` 并通过 `onUpdateAbilities()` 发送原版能力包；创造、旁观和其他有效来源继续由各自机制决定。
+资格与启停仍接入原版 / NeoForge，没有自定义飞行网络协议或操纵代码。撤销自身来源后，只有综合 `mayFly()` 已为假且玩家仍在飞行时，才关闭 `flying` 并发送原版能力包；创造、旁观和其他有效来源继续由各自机制决定。
 
-临时修饰符不写入常规属性存档。生命周期处理在逻辑服务端执行：登录、退出、重生和完成跨维度时撤销自身来源；玩家 tick 结束时检查实际死亡和模式变化。授予时只在内存中记录玩家 UUID 与实际 `GameType`，资格仍以属性来源为准；来源移除、会话结束和服务器停止时清理相应记录，不保存旧权限布尔值。
+服务端玩家附件 `gensou_in_operation:reimu_test_flight` 使用 `Codec` 保存 `enabled` 及可选的 `flying_before_spectator`。普通模式的实际飞行位复用原版 `Abilities.flying` 存档，不另外逐 tick 维护副本。临时属性修饰符仍不写入属性存档，由附件重建；缺少附件的旧存档默认没有本模组资格，不根据创造模式或外部属性推断开启。附件不启用 `copyOnDeath`，只在服务端使用。
 
-游戏模式切换前事件可以被取消，因此不能仅根据请求目标撤销资格。当前在该事件中只检查此前是否已经发生实际模式变化，以覆盖同 tick 往返；玩家 tick 再核对最终实际模式。取消但未生效的切换不会清理资格。阶段验证及限制见 [003 结果](../../work/003-flight-prototype/RESULT.md)，使用条件及后续设计见 [飞行设计](../design/flight.md#资格切换与站立支撑)。
+`LoadFromFile` 在模式初始化和首次能力包之前恢复资格，同时暂存原飞行位，覆盖服务器强制登录模式的情况；登录结束后，仅旁观模式继续保留这份记忆。常规维度转换保留原玩家；非死亡 Clone 在 NeoForge 复制附件之后重建来源和飞行位，再在 Respawn 包之后同步。玩家 tick、退出及加载检查实际死亡，死亡 Clone 再作清理；末地字幕期间被移除但生命值仍为正的玩家不视为死亡。没有 UUID 会话表，也不每 tick 强制起飞。
 
-上述生命周期清理描述当前代码，不是新的玩法要求。2026-11-03 确认的 [状态延续规则](../design/flight.md#灵梦式飞行的状态延续) 要求非死亡转换保留资格与飞行状态；当前尚无相应持久化与恢复实现，已有测试的预期也需同步修订。`CREATIVE_FLIGHT` 与改键需求的本次源码核对及候选路线见 [003 后续评估](../../work/003-flight-prototype/RESULT.md#2026-11-03复测反馈与状态延续规则修订)。
+公开模式事件发生在变更之前且可以取消或改写目标，因此用两个小范围服务端 Mixin 包住实际模式赋值及后续发包点。成功赋值后记录或恢复旁观前状态；取消和无变化的请求不触发。拥有本模组来源时，将模式、完整 `CREATIVE_FLIGHT` 属性及最终能力组成一个原版 `ClientboundBundlePacket`，避免客户端在旧旁观模式下短暂处理停飞并回传错误状态；保留原版即时隐身更新。其他玩家保留原发包路径。配置见 [Mixin JSON](../../src/main/resources/gensou_in_operation.mixins.json) 及元数据模板；使用 NeoForge 已携带的 MixinExtras，没有增加玩法前置。
+
+登录、维度转换及非死亡重建也通过原版 bundle 按“属性→能力”补发恢复状态；发送完整属性实例以保留外部修饰符。自动化检查发包内容与顺序，客户端实际表现由真人复测确认；两类证据分别记录在 [003 结果](../../work/003-flight-prototype/RESULT.md)。使用条件与玩法规则见 [飞行设计](../design/flight.md#灵梦式飞行的状态延续)，后续改键路线见 [003 输入评估](../../work/003-flight-prototype/RESULT.md#2026-11-03复测反馈与状态延续规则修订)。
 
 ## 开发入口
 

@@ -3,6 +3,7 @@ package dev.quantumuniversessteel.gensou_in_operation.gametest;
 import com.mojang.authlib.GameProfile;
 import dev.quantumuniversessteel.gensou_in_operation.GensouInOperation;
 import dev.quantumuniversessteel.gensou_in_operation.flight.ReimuTestFlight;
+import dev.quantumuniversessteel.gensou_in_operation.flight.FlightAttachments;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -11,13 +12,17 @@ import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GameTestListener;
 import net.minecraft.gametest.framework.GameTestRunner;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ClientboundBundlePacket;
+import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
 import net.minecraft.network.protocol.game.ClientboundChunkBatchFinishedPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerAbilitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
+import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
+import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundChunkBatchReceivedPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -25,7 +30,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
@@ -86,35 +90,17 @@ public final class FlightLifecycleGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void modeChangesClearSourceAndPreserveVanillaFlight(GameTestHelper helper) {
-        Fixture fixture = new Fixture(helper);
-        ReimuTestFlight.grant(fixture.player);
-        fixture.player.setGameMode(GameType.ADVENTURE);
-        helper.runAfterDelay(2, () -> {
-            helper.assertTrue(!ReimuTestFlight.hasOwnSource(fixture.player) && !fixture.player.mayFly(),
-                    "Adventure transition must clear the test source");
+    public static void ordinaryModesPreservePermissionAndFlight(GameTestHelper helper) {
+        for (boolean flying : new boolean[]{false, true}) {
+            Fixture fixture = new Fixture(helper);
             ReimuTestFlight.grant(fixture.player);
-            fixture.player.setGameMode(GameType.CREATIVE);
-            fixture.player.getAbilities().flying = true;
-            helper.runAfterDelay(2, () -> {
-                helper.assertTrue(!ReimuTestFlight.hasOwnSource(fixture.player)
-                                && fixture.player.mayFly() && fixture.player.getAbilities().flying,
-                        "Cleanup must preserve creative flight");
-                ReimuTestFlight.grant(fixture.player);
-                fixture.player.setGameMode(GameType.SPECTATOR);
-                helper.runAfterDelay(2, () -> {
-                    helper.assertTrue(!ReimuTestFlight.hasOwnSource(fixture.player)
-                                    && fixture.player.mayFly() && fixture.player.getAbilities().flying,
-                            "Cleanup must preserve spectator flight");
-                    fixture.player.setGameMode(GameType.SURVIVAL);
-                    helper.runAfterDelay(2, () -> {
-                        helper.assertTrue(!ReimuTestFlight.hasOwnSource(fixture.player) && !fixture.player.mayFly(),
-                                "Returning to survival must not restore the test permission");
-                        helper.succeed();
-                    });
-                });
-            });
-        });
+            fixture.player.getAbilities().flying = flying;
+            for (GameType mode : new GameType[]{GameType.ADVENTURE, GameType.CREATIVE, GameType.SURVIVAL}) {
+                fixture.player.setGameMode(mode);
+                assertState(helper, fixture.player, true, flying, "mode " + mode);
+            }
+        }
+        helper.succeed();
     }
 
     @GameTest(template = "empty")
@@ -139,13 +125,23 @@ public final class FlightLifecycleGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void sameTickModeRoundTripClearsSource(GameTestHelper helper) {
+    public static void sameTickSpectatorRoundTripsRestoreOriginalFlight(GameTestHelper helper) {
         Fixture fixture = new Fixture(helper);
         ReimuTestFlight.grant(fixture.player);
-        fixture.player.setGameMode(GameType.CREATIVE);
-        fixture.player.setGameMode(GameType.SURVIVAL);
-        helper.assertTrue(!ReimuTestFlight.hasOwnSource(fixture.player) && !fixture.player.mayFly(),
-                "A completed mode change must not be hidden by a same-tick return");
+        for (boolean flying : new boolean[]{false, true}) {
+            fixture.player.getAbilities().flying = flying;
+            fixture.player.setGameMode(GameType.SPECTATOR);
+            assertState(helper, fixture.player, true, true, "spectator forces flight");
+            helper.assertTrue(fixture.player.isInvisible(), "Spectator entry must refresh invisibility immediately");
+            ReimuTestFlight.grant(fixture.player);
+            fixture.player.setGameMode(GameType.CREATIVE);
+            assertState(helper, fixture.player, true, flying, "exit to creative restores prior state");
+            helper.assertTrue(!fixture.player.isInvisible(), "Spectator exit must refresh invisibility immediately");
+            fixture.player.setGameMode(GameType.SPECTATOR);
+            fixture.player.setGameMode(GameType.SURVIVAL);
+            assertState(helper, fixture.player, true, flying, "same-tick second roundtrip");
+            helper.assertTrue(!fixture.player.isInvisible(), "Same-tick roundtrip must not leave spectator invisibility");
+        }
         helper.succeed();
     }
 
@@ -172,24 +168,23 @@ public final class FlightLifecycleGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void logoutAndReconnectDoNotRestoreSource(GameTestHelper helper) {
+    public static void activeFlightAndExternalSourceSurviveReconnect(GameTestHelper helper) {
         Fixture fixture = new Fixture(helper);
         fixture.player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT).addPermanentModifier(otherSource());
         ReimuTestFlight.grant(fixture.player);
         fixture.player.getAbilities().flying = true;
-        String activeSave = fixture.player.saveWithoutId(new CompoundTag()).toString();
-        helper.assertTrue(!activeSave.contains(OWN_SOURCE.toString()) && activeSave.contains(OTHER_SOURCE.toString()),
-                "An active save must omit our transient source and keep the external permanent source");
-        ServerPlayer previous = fixture.player;
-        fixture.level.getServer().getPlayerList().remove(previous);
-        helper.assertTrue(!ReimuTestFlight.hasOwnSource(previous), "Logout must clear the old player before saving");
-        fixture.closeConnection();
-        fixture.connect();
-        helper.assertTrue(!ReimuTestFlight.hasOwnSource(fixture.player), "Reconnect must not restore our source");
-        helper.assertTrue(fixture.player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT).hasModifier(OTHER_SOURCE)
-                        && fixture.player.mayFly(),
-                "Another source must survive the real player save/load path");
-        helper.succeed();
+        CompoundTag save = fixture.player.saveWithoutId(new CompoundTag());
+        String attributes = save.getList("attributes", Tag.TAG_COMPOUND).toString();
+        helper.assertTrue(!attributes.contains(OWN_SOURCE.toString()) && attributes.contains(OTHER_SOURCE.toString()),
+                "Only the external modifier is saved as an attribute; our attachment restores our source");
+        fixture.reconnect();
+        assertState(helper, fixture.player, true, true, "immediate reconnect");
+        helper.assertTrue(fixture.player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT).hasModifier(OTHER_SOURCE),
+                "External permanent source survives the same load");
+        helper.startSequence().thenWaitUntil(() -> {
+            assertRestoreBundle(helper, fixture.bundles, fixture.player, true);
+            assertState(helper, fixture.player, true, true, "after connection ticks");
+        }).thenSucceed();
     }
 
     @GameTest(template = "empty")
@@ -201,8 +196,7 @@ public final class FlightLifecycleGameTests {
             helper.assertTrue(!fixture.player.isAlive() && !ReimuTestFlight.hasOwnSource(fixture.player),
                     "Real death must clear the old player source");
             helper.assertTrue(!ReimuTestFlight.grant(fixture.player), "A dead player cannot receive a new source");
-            fixture.player = fixture.level.getServer().getPlayerList()
-                    .respawn(fixture.player, false, Entity.RemovalReason.KILLED);
+            fixture.respawn();
             helper.assertTrue(!ReimuTestFlight.hasOwnSource(fixture.player) && !fixture.player.mayFly(),
                     "Respawn must start without our permission");
             helper.succeed();
@@ -230,25 +224,269 @@ public final class FlightLifecycleGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void dimensionRoundTripClearsOnlyOurSource(GameTestHelper helper) {
-        Fixture fixture = new Fixture(helper);
-        var attribute = fixture.player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT);
-        attribute.addTransientModifier(otherSource());
-        ReimuTestFlight.grant(fixture.player);
-        ServerLevel nether = fixture.level.getServer().getLevel(Level.NETHER);
-        helper.assertTrue(nether != null, "Nether must exist for dimension integration test");
-        fixture.player.changeDimension(new DimensionTransition(nether, new Vec3(0, 100, 0), Vec3.ZERO,
-                0, 0, DimensionTransition.DO_NOTHING));
-        helper.assertTrue(fixture.player.serverLevel() == nether && !ReimuTestFlight.hasOwnSource(fixture.player),
-                "Completed dimension travel must clear our source");
-        helper.assertTrue(attribute.hasModifier(OTHER_SOURCE) && fixture.player.mayFly(),
-                "Dimension cleanup must preserve an external source");
-        ReimuTestFlight.grant(fixture.player);
-        fixture.player.changeDimension(new DimensionTransition(fixture.level, fixture.position, Vec3.ZERO,
-                0, 0, DimensionTransition.DO_NOTHING));
-        helper.assertTrue(fixture.player.serverLevel() == fixture.level && !ReimuTestFlight.hasOwnSource(fixture.player),
-                "Returning dimension travel must also clear our source");
+    public static void dimensionRoundTripsPreservePermissionAndFlight(GameTestHelper helper) {
+        ServerLevel nether = helper.getLevel().getServer().getLevel(Level.NETHER);
+        helper.assertTrue(nether != null, "Nether must exist");
+        List<Fixture> fixtures = new ArrayList<>();
+        for (int state = 0; state < 3; state++) {
+            Fixture fixture = new Fixture(helper);
+            fixtures.add(fixture);
+            boolean enabled = state > 0;
+            boolean flying = state == 2;
+            if (enabled) ReimuTestFlight.grant(fixture.player);
+            fixture.player.getAbilities().flying = flying;
+            fixture.player.changeDimension(new DimensionTransition(nether, new Vec3(0, 100, 0), Vec3.ZERO,
+                    0, 0, DimensionTransition.DO_NOTHING));
+            assertState(helper, fixture.player, enabled, flying, "to Nether");
+        }
+        // Give destination chunks and teleport acknowledgements time to settle before returning.
+        // Repeated same-tick cold-dimension roundtrips can strand chunk-unload work during shutdown.
+        helper.startSequence().thenIdle(5).thenWaitUntil(() ->
+                helper.assertTrue(nether.hasChunkAt(fixtures.getFirst().player.blockPosition()), "Nether destination loaded"))
+                .thenExecute(() -> {
+                    for (int state = 0; state < fixtures.size(); state++) {
+                        Fixture fixture = fixtures.get(state);
+                        assertState(helper, fixture.player, state > 0, state == 2, "settled in Nether");
+                        fixture.player.changeDimension(new DimensionTransition(fixture.level, fixture.position, Vec3.ZERO,
+                                0, 0, DimensionTransition.DO_NOTHING));
+                        assertState(helper, fixture.player, state > 0, state == 2, "to Overworld");
+                    }
+                }).thenIdle(5).thenSucceed();
+    }
+
+
+    @GameTest(template = "empty")
+    public static void disabledAndStoppedStatesSurviveReconnect(GameTestHelper helper) {
+        for (int state = 0; state < 3; state++) {
+            Fixture fixture = new Fixture(helper);
+            if (state > 0) ReimuTestFlight.grant(fixture.player);
+            if (state == 2) ReimuTestFlight.revoke(fixture.player);
+            fixture.reconnect();
+            assertState(helper, fixture.player, state == 1, false, "disabled/stopped reconnect " + state);
+        }
         helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void spectatorMemorySurvivesReconnect(GameTestHelper helper) {
+        for (boolean flying : new boolean[]{false, true}) {
+            Fixture fixture = new Fixture(helper);
+            ReimuTestFlight.grant(fixture.player);
+            fixture.player.getAbilities().flying = flying;
+            fixture.player.setGameMode(GameType.SPECTATOR);
+            fixture.reconnect();
+            helper.assertTrue(fixture.player.isSpectator(), "Reconnect must preserve saved spectator mode");
+            assertState(helper, fixture.player, true, true, "spectator reconnect");
+            fixture.player.setGameMode(GameType.SURVIVAL);
+            assertState(helper, fixture.player, true, flying, "spectator memory after reconnect");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void spectatorExitSendsRestoredAbilities(GameTestHelper helper) {
+        Fixture fixture = new Fixture(helper);
+        ReimuTestFlight.grant(fixture.player);
+        fixture.player.setGameMode(GameType.SPECTATOR);
+        helper.startSequence().thenIdle(2).thenExecute(() -> {
+            fixture.drainPackets();
+            fixture.player.setGameMode(GameType.SURVIVAL);
+        }).thenWaitUntil(() -> {
+            var abilities = fixture.receivedPackets().stream()
+                    .filter(ClientboundPlayerAbilitiesPacket.class::isInstance)
+                    .map(ClientboundPlayerAbilitiesPacket.class::cast).toList();
+            helper.assertTrue(!abilities.isEmpty(), "Mode change must send abilities");
+            helper.assertTrue(abilities.stream().noneMatch(ClientboundPlayerAbilitiesPacket::isFlying),
+                    "Even the first exit abilities packet must restore stopped flight");
+            assertState(helper, fixture.player, true, false, "spectator exit after ticks");
+            boolean atomic = fixture.bundles.stream().anyMatch(bundle -> {
+                List<Object> parts = new ArrayList<>();
+                bundle.subPackets().forEach(parts::add);
+                return parts.size() == 3
+                        && parts.getFirst() instanceof ClientboundGameEventPacket mode
+                        && mode.getEvent() == ClientboundGameEventPacket.CHANGE_GAME_MODE
+                        && mode.getParam() == GameType.SURVIVAL.getId()
+                        && parts.get(1) instanceof ClientboundUpdateAttributesPacket attributes
+                        && attributes.getEntityId() == fixture.player.getId()
+                        && parts.getLast() instanceof ClientboundPlayerAbilitiesPacket flight && !flight.isFlying();
+            });
+            helper.assertTrue(atomic, "Mode, complete attribute and restored flight must share one bundle");
+        }).thenSucceed();
+    }
+
+    @GameTest(template = "empty")
+    public static void rewrittenModeRequestUsesActualMode(GameTestHelper helper) {
+        Fixture fixture = new Fixture(helper);
+        ReimuTestFlight.grant(fixture.player);
+        Consumer<PlayerEvent.PlayerChangeGameModeEvent> rewrite = event -> {
+            if (event.getEntity() == fixture.player && event.getNewGameMode() == GameType.SPECTATOR) {
+                event.setNewGameMode(GameType.CREATIVE);
+            }
+        };
+        NeoForge.EVENT_BUS.addListener(rewrite);
+        fixture.listeners.add(rewrite);
+        fixture.player.setGameMode(GameType.SPECTATOR);
+        helper.assertTrue(fixture.player.isCreative(), "Listener must rewrite the requested mode");
+        assertState(helper, fixture.player, true, false, "rewritten mode must not create a spectator memory");
+        fixture.player.setGameMode(GameType.SURVIVAL);
+        assertState(helper, fixture.player, true, false, "after rewritten request");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void vanillaAndExternalOnlyFlightAreNotCaptured(GameTestHelper helper) {
+        Fixture fixture = new Fixture(helper);
+        fixture.player.getAttribute(NeoForgeMod.CREATIVE_FLIGHT).addPermanentModifier(otherSource());
+        fixture.player.getAbilities().flying = true;
+        fixture.player.setGameMode(GameType.SPECTATOR);
+        fixture.player.setGameMode(GameType.CREATIVE);
+        fixture.reconnect();
+        helper.assertTrue(fixture.player.isCreative() && fixture.player.getAbilities().flying,
+                "Native mode and external-only flight must not be overwritten");
+        helper.assertTrue(!fixture.player.hasData(FlightAttachments.REIMU_TEST_FLIGHT)
+                        && !ReimuTestFlight.hasOwnSource(fixture.player), "Must not create our permission from another source");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void activeSavesLoadIntoFreshPlayers(GameTestHelper helper) {
+        for (boolean flying : new boolean[]{false, true}) {
+            Fixture fixture = new Fixture(helper);
+            ReimuTestFlight.grant(fixture.player);
+            fixture.player.getAbilities().flying = flying;
+            fixture.level.getServer().getPlayerList().saveAll();
+            ServerPlayer loaded = fixture.loadDetachedPlayer();
+            assertState(helper, loaded, true, flying, "load active save without logout or runtime state");
+            fixture.player.setGameMode(GameType.SPECTATOR);
+            fixture.level.getServer().getPlayerList().saveAll();
+            loaded = fixture.loadDetachedPlayer();
+            helper.assertTrue(loaded.isSpectator() && loaded.getAbilities().flying,
+                    "Saved spectator mode must force flight on load");
+            helper.assertTrue(loaded.getData(FlightAttachments.REIMU_TEST_FLIGHT)
+                    .flyingBeforeSpectator().orElseThrow() == flying, "Spectator memory must survive active disk save");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void immediateDeathDisconnectAndSavedDeathCannotRestoreFlight(GameTestHelper helper) {
+        Fixture fixture = new Fixture(helper);
+        ReimuTestFlight.grant(fixture.player);
+        fixture.player.getAbilities().flying = true;
+        fixture.player.hurt(fixture.player.damageSources().genericKill(), Float.MAX_VALUE);
+        fixture.level.getServer().getPlayerList().saveAll();
+        ServerPlayer loaded = fixture.loadDetachedPlayer();
+        assertState(helper, loaded, false, false, "dead snapshot loaded before a cleanup tick");
+        fixture.reconnect();
+        assertState(helper, fixture.player, false, false, "immediate death-screen reconnect");
+        fixture.respawn();
+        assertState(helper, fixture.player, false, false, "respawn after death-screen reconnect");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void endReturnRebuildsPlayerAndRestoresFlight(GameTestHelper helper) {
+        Fixture fixture = new Fixture(helper);
+        ReimuTestFlight.grant(fixture.player);
+        fixture.player.getAbilities().flying = true;
+        ServerLevel end = fixture.level.getServer().getLevel(Level.END);
+        fixture.player.changeDimension(new DimensionTransition(end, new Vec3(0, 100, 0), Vec3.ZERO,
+                0, 0, DimensionTransition.DO_NOTHING));
+        ServerPlayer original = fixture.player;
+        helper.startSequence().thenIdle(5).thenWaitUntil(() ->
+                helper.assertTrue(end.hasChunkAt(original.blockPosition()), "End destination loaded"))
+                .thenExecute(() -> fixture.player.showEndCredits()).thenIdle(3).thenExecute(() -> {
+            helper.assertTrue(original.getHealth() > 0 && ReimuTestFlight.hasOwnSource(original),
+                    "Removal while watching End credits is not death");
+            fixture.drainPackets();
+            fixture.respawn();
+            helper.assertTrue(original != fixture.player, "End return must rebuild the server player");
+            assertState(helper, fixture.player, true, true, "End non-death clone");
+        }).thenWaitUntil(() -> {
+            List<Object> packets = fixture.receivedPackets();
+            int respawn = -1;
+            for (int i = 0; i < packets.size(); i++) {
+                if (packets.get(i) instanceof ClientboundRespawnPacket) respawn = i;
+            }
+            helper.assertTrue(respawn >= 0, "End return sends Respawn");
+            assertRestorePackets(helper, packets.subList(respawn + 1, packets.size()), fixture.player, true);
+            assertRestoreBundle(helper, fixture.bundles, fixture.player, true);
+        }).thenSucceed();
+    }
+
+    @GameTest(template = "empty")
+    public static void endReturnPreservesStoppedAndSpectatorMemory(GameTestHelper helper) {
+        for (boolean spectator : new boolean[]{false, true}) {
+            Fixture fixture = new Fixture(helper);
+            ReimuTestFlight.grant(fixture.player);
+            if (spectator) fixture.player.setGameMode(GameType.SPECTATOR);
+            fixture.player.showEndCredits();
+            fixture.respawn();
+            assertState(helper, fixture.player, true, spectator, "End return stopped/spectator state");
+            if (spectator) fixture.player.setGameMode(GameType.SURVIVAL);
+            assertState(helper, fixture.player, true, false, "End clone must preserve stopped spectator memory");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void forcedLoginModesPreserveSpectatorMemory(GameTestHelper helper) {
+        for (boolean flying : new boolean[]{false, true}) {
+            Fixture fixture = new Fixture(helper);
+            ReimuTestFlight.grant(fixture.player);
+            fixture.player.getAbilities().flying = flying;
+            fixture.forcedLoginMode = GameType.SPECTATOR;
+            fixture.reconnect();
+            helper.assertTrue(fixture.player.isSpectator(), "Login mode override must take effect");
+            fixture.player.setGameMode(GameType.SURVIVAL);
+            assertState(helper, fixture.player, true, flying, "forced spectator exit");
+            fixture.player.setGameMode(GameType.SPECTATOR);
+            fixture.forcedLoginMode = GameType.SURVIVAL;
+            fixture.reconnect();
+            assertState(helper, fixture.player, true, flying, "forced survival restores pre-spectator state");
+        }
+        helper.succeed();
+    }
+
+    private static void assertRestoreBundle(GameTestHelper helper, List<ClientboundBundlePacket> bundles,
+                                           ServerPlayer player, boolean flying) {
+        for (ClientboundBundlePacket bundle : bundles) {
+            List<Object> parts = new ArrayList<>();
+            bundle.subPackets().forEach(parts::add);
+            if (parts.size() == 2 && parts.getFirst() instanceof ClientboundUpdateAttributesPacket attributes
+                    && attributes.getEntityId() == player.getId()
+                    && attributes.getValues().stream().anyMatch(snapshot -> snapshot.attribute().equals(NeoForgeMod.CREATIVE_FLIGHT)
+                    && snapshot.modifiers().stream().anyMatch(modifier -> modifier.id().equals(OWN_SOURCE)))
+                    && parts.getLast() instanceof ClientboundPlayerAbilitiesPacket abilities && abilities.isFlying() == flying) {
+                return;
+            }
+        }
+        helper.fail("Expected a single atomic attribute/abilities bundle for the restored player");
+    }
+
+    private static void assertState(GameTestHelper helper, ServerPlayer player, boolean enabled,
+                                    boolean flying, String context) {
+        helper.assertTrue(ReimuTestFlight.hasOwnSource(player) == enabled, context + ": source mismatch");
+        boolean saved = player.hasData(FlightAttachments.REIMU_TEST_FLIGHT)
+                && player.getData(FlightAttachments.REIMU_TEST_FLIGHT).enabled();
+        helper.assertTrue(saved == enabled, context + ": saved permission mismatch");
+        helper.assertTrue(player.getAbilities().flying == flying, context + ": flying mismatch");
+    }
+
+    private static void assertRestorePackets(GameTestHelper helper, List<Object> packets,
+                                             ServerPlayer player, boolean flying) {
+        assertAttributePacket(helper, packets, player, true, "restored owner");
+        for (int i = 0; i + 1 < packets.size(); i++) {
+            if (packets.get(i) instanceof ClientboundUpdateAttributesPacket attributes
+                    && attributes.getEntityId() == player.getId()
+                    && attributes.getValues().stream().anyMatch(snapshot -> snapshot.attribute().equals(NeoForgeMod.CREATIVE_FLIGHT)
+                    && snapshot.modifiers().stream().anyMatch(modifier -> modifier.id().equals(OWN_SOURCE)))
+                    && packets.get(i + 1) instanceof ClientboundPlayerAbilitiesPacket abilities
+                    && abilities.isFlying() == flying) {
+                return;
+            }
+        }
+        helper.fail("Expected an ordered own-attribute / restored-abilities pair");
     }
 
     private static AttributeModifier otherSource() {
@@ -277,6 +515,8 @@ public final class FlightLifecycleGameTests {
         final GameProfile profile;
         final List<Object> listeners = new ArrayList<>();
         final List<Object> received = new ArrayList<>();
+        final List<ClientboundBundlePacket> bundles = new ArrayList<>();
+        GameType forcedLoginMode;
         ServerPlayer player;
         Connection connection;
         EmbeddedChannel channel;
@@ -290,25 +530,62 @@ public final class FlightLifecycleGameTests {
             helper.testInfo.addListener(this);
             helper.setBlock(new BlockPos(1, 0, 1), Blocks.STONE);
             connect();
+            player.setGameMode(GameType.SURVIVAL);
+            player.teleportTo(level, position.x, position.y, position.z, 0, 0);
             helper.onEachTick(this::receivePackets);
         }
 
         void connect() {
             CommonListenerCookie cookie = CommonListenerCookie.createInitial(profile, false);
-            player = new ServerPlayer(level.getServer(), level, profile, cookie.clientInformation());
+            player = new ServerPlayer(level.getServer(), level, profile, cookie.clientInformation()) {
+                @Override
+                public void loadGameTypes(CompoundTag saved) {
+                    // Emulate the final mode override at the real login stage, without changing the shared server.
+                    if (forcedLoginMode != null) {
+                        CompoundTag overridden = saved == null ? new CompoundTag() : saved.copy();
+                        overridden.putInt("playerGameType", forcedLoginMode.getId());
+                        super.loadGameTypes(overridden);
+                    } else {
+                        super.loadGameTypes(saved);
+                    }
+                }
+            };
             connection = new Connection(PacketFlow.SERVERBOUND);
             channel = new EmbeddedChannel(connection);
+            // Start a new profile at its test structure; saved positions still override this on reconnect.
+            player.moveTo(position.x, position.y, position.z, 0, 0);
             level.getServer().getPlayerList().placeNewPlayer(connection, player, cookie);
             // Normal connections are ticked by the server; an embedded channel is not auto-registered.
             level.getServer().getConnection().getConnections().add(connection);
-            player.setGameMode(GameType.SURVIVAL);
-            player.teleportTo(level, position.x, position.y, position.z, 0, 0);
+        }
+
+        void reconnect() {
+            level.getServer().getPlayerList().remove(player);
+            closeConnection();
+            received.clear();
+            bundles.clear();
+            connect();
+        }
+
+        ServerPlayer loadDetachedPlayer() {
+            var cookie = CommonListenerCookie.createInitial(profile, false);
+            ServerPlayer loaded = new ServerPlayer(level.getServer(), level, profile, cookie.clientInformation());
+            var saved = level.getServer().getPlayerList().load(loaded);
+            loaded.loadGameTypes(saved.orElseThrow());
+            return loaded;
+        }
+
+        void respawn() {
+            player.connection.handleClientCommand(new ServerboundClientCommandPacket(
+                    ServerboundClientCommandPacket.Action.PERFORM_RESPAWN));
+            player = level.getServer().getPlayerList().getPlayer(profile.getId());
         }
 
         List<Object> drainPackets() {
             receivePackets();
             List<Object> packets = List.copyOf(received);
             received.clear();
+            bundles.clear();
             return packets;
         }
 
@@ -325,6 +602,7 @@ public final class FlightLifecycleGameTests {
             Object packet;
             while ((packet = channel.readOutbound()) != null) {
                 if (packet instanceof ClientboundBundlePacket bundle) {
+                    bundles.add(bundle);
                     bundle.subPackets().forEach(received::add);
                 } else {
                     received.add(packet);
